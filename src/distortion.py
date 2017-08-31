@@ -35,7 +35,7 @@ def quantization_noise(im, level=16):
 
 def low_resolution(im, scale=0.2):
     # scale: 0.1 ~ 0.5
-    size   = im.shape[:-1]
+    size   = im.shape
     scaled = skimage.transform.rescale(im, scale)
     noisy  = skimage.transform.resize(scaled, size)
     noisy = np.clip(noisy, 0, 1.0)
@@ -45,7 +45,7 @@ def low_resolution(im, scale=0.2):
 def f_noise(im, scale=5, clip=True):
     # scale: 1 ~ 15
     def one_f(beta=-1):
-        dim = im.shape[:-1]
+        dim = im.shape
 
         u1 = np.arange(np.floor(dim[0]/2)+1)
         u2 = -1 * np.arange(np.ceil(dim[0]/2)-1, 0, -1)
@@ -70,18 +70,8 @@ def f_noise(im, scale=5, clip=True):
 
     im = skimage.util.img_as_float(im)
     noisy = im.copy()
-    noisy[:,:,0] = im[:,:,0] + scale*one_f(-2)
-    noisy[:,:,1] = im[:,:,1] + scale*one_f(-2)
-    noisy[:,:,2] = im[:,:,2] + scale*one_f(-2)
+    noisy[:,:] = im[:,:] + scale*one_f(-2)
 
-    noisy = np.clip(noisy, 0, 1.0)
-    return noisy
-
-
-def denoising(im, factor):
-    # factor: 0.02 ~ 0.1
-    im = skimage.util.img_as_float(im)
-    noisy = denoise_nl_means(im, 7, 7, factor)
     noisy = np.clip(noisy, 0, 1.0)
     return noisy
 
@@ -91,10 +81,6 @@ def jpeg_compression(im, quality=30, filename="tmp"):
 
     im = skimage.util.img_as_ubyte(im)
     obj = Image.fromarray(im)
-    obj.save("/tmp/{}.jpg".format(filename), format="JPEG", quality=int(quality))
-    noisy = skimage.io.imread("/tmp/{}.jpg".format(filename))
+    obj.save("./{}.jpg".format(filename), format="JPEG", quality=int(quality))
+    noisy = skimage.io.imread("./{}.jpg".format(filename))
     return noisy
-
-
-def block(im, quality):
-   pass 
