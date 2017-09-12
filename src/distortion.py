@@ -1,7 +1,9 @@
+import os
 import skimage.io
 import skimage.util
 import skimage.filters
 import skimage.transform
+from skimage.restoration import denoise_nl_means
 import numpy as np
 from PIL import Image
 
@@ -9,14 +11,27 @@ def gaussian_noise(im, var=0.01):
     # var: 0 ~ 0.1
     noisy = skimage.util.random_noise(im, mode="gaussian", var=var)
     noisy = np.clip(noisy, 0, 1.0)
-    return noisy
+    return skimage.util.img_as_ubyte(noisy)
+
+
+def snp(im, amount=0.01):
+    noisy = skimage.util.random_noise(im, mode="s&p", amount=amount)
+    noisy = np.clip(noisy, 0, 1.0)
+    return skimage.util.img_as_ubyte(noisy)
+
+def low_resolution(im, scale=0.2):
+    size   = im.shape[:2]
+    scaled = skimage.transform.rescale(im, scale)
+    noisy  = skimage.transform.resize(scaled, size)
+    noisy = np.clip(noisy, 0, 1.0)
+    return skimage.util.img_as_ubyte(noisy)
 
 
 def gaussian_blur(im, sigma=5):
     # sigma: 0 ~ 10
     noisy = skimage.filters.gaussian(im, sigma=sigma)
     noisy = np.clip(noisy, 0, 1.0)
-    return noisy
+    return skimage.util.img_as_ubyte(noisy)
 
 
 def quantization_noise(im, level=16):
@@ -30,22 +45,34 @@ def quantization_noise(im, level=16):
 
     noisy = skimage.util.img_as_float(noisy)
     noisy = np.clip(noisy, 0, 1.0)
-    return noisy
+    return skimage.util.img_as_ubyte(noisy)
 
 
-def low_resolution(im, scale=0.2):
-    # scale: 0.1 ~ 0.5
-    size   = im.shape
-    scaled = skimage.transform.rescale(im, scale)
-    noisy  = skimage.transform.resize(scaled, size)
+def jpeg_compression(im, quality=30):
+    quality = int(quality)
+
+    im = skimage.util.img_as_ubyte(im)
+    obj = Image.fromarray(im)
+
+    filename = os.getpid()
+
+    obj.save("/tmp/{}.jpg".format(filename), format="JPEG", quality=int(quality))
+    noisy = skimage.io.imread("/tmp/{}.jpg".format(filename))
+    return skimage.util.img_as_ubyte(noisy)
+
+
+def denoising(im, factor):
+    # factor: 0.02 ~ 0.1
+    im = skimage.util.img_as_float(im)
+    noisy = denoise_nl_means(im, 7, 7, factor)
     noisy = np.clip(noisy, 0, 1.0)
-    return noisy
+    return skimage.util.img_as_ubyte(noisy)
 
 
 def f_noise(im, scale=5, clip=True):
     # scale: 1 ~ 15
     def one_f(beta=-1):
-        dim = im.shape
+        dim = im.shape[:2]
 
         u1 = np.arange(np.floor(dim[0]/2)+1)
         u2 = -1 * np.arange(np.ceil(dim[0]/2)-1, 0, -1)
@@ -70,17 +97,13 @@ def f_noise(im, scale=5, clip=True):
 
     im = skimage.util.img_as_float(im)
     noisy = im.copy()
-    noisy[:,:] = im[:,:] + scale*one_f(-2)
+
+    if len(noisy.shape) == 3:
+        noisy[:, :, 0] = im[:, :, 0] + scale*one_f(-2)
+        noisy[:, :, 1] = im[:, :, 1] + scale*one_f(-2)
+        noisy[:, :, 2] = im[:, :, 2] + scale*one_f(-2)
+    else:
+        noisy[:, :] = im[:, :] + scale*one_f(-2)
 
     noisy = np.clip(noisy, 0, 1.0)
-    return noisy
-
-
-def jpeg_compression(im, quality=30, filename="tmp"):
-    quality = int(quality)
-
-    im = skimage.util.img_as_ubyte(im)
-    obj = Image.fromarray(im)
-    obj.save("./{}.jpg".format(filename), format="JPEG", quality=int(quality))
-    noisy = skimage.io.imread("./{}.jpg".format(filename))
-    return noisy
+    return skimage.util.img_as_ubyte(noisy)
