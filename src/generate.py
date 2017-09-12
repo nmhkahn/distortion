@@ -12,7 +12,7 @@ from distortion import *
 import warnings
 warnings.filterwarnings("ignore")
 
-NUM_PROC = 4
+NUM_PROC = 2
 FN_NAME = {
     "gaussian_noise":     "gwn", 
     "snp": "snp",
@@ -142,9 +142,10 @@ def _block(im, num_parts):
     return new_im, distorts
 
 
-def do_work(paths):
+def do_work(paths, out):
     pid = os.getpid()
 
+    infos = []
     for step, path in enumerate(paths):
         im = scipy.misc.imread(path)
         fname = path.split("/")[-1].split(".")[0]
@@ -165,37 +166,46 @@ def do_work(paths):
                 }
 
                 i += 1
-                
-                with open(in_path.replace("jpg", "json"), 'w') as outfile:
-                    json.dump(info, outfile)
-
+                infos.append(info)
                 new_im.save(in_path, format="JPEG", quality=100)
                 print(path, "=>", in_path)
+    out.put(infos)
         
 
-def distribute(paths):
+def distribute(paths, msg):
+    print(paths)
     works_per_proc = int(len(paths)/NUM_PROC)
     
     works = [[works_per_proc*i, works_per_proc*(i+1)] for i in range(NUM_PROC)]
     works[-1][1] = len(paths)
     
     pool = []
+    outputs = []
     for i in range(NUM_PROC):
         start, end = works[i]
         job = paths[start:end]
-        proc = Process(target=do_work, args=([job]))
+
+        out = Queue()
+        proc = Process(target=do_work, args=(job, out))
         proc.start()
+        
         pool.append(proc)
+        outputs.append(out)
     
-    for p in pool:
+    infos = []
+    for p, o in zip(pool, outputs):
+        infos += o.get()
+        o.close()
         p.join()
 
+    with open("{}.json".format(msg), 'w') as outfile:
+        json.dump(infos, outfile)
 
 def main():
-    distribute(glob.glob("flickr/reference/train/color/*.jpg")[:10])
-    #distribute(glob.glob("flickr/reference/train/gray/*.jpg")[:10])
-    #distribute(glob.glob("flickr/reference/test/color/*.jpg")[:10])
-    #distribute(glob.glob("flickr/reference/test/gray/*.jpg")[:10])
+    distribute(glob.glob("flickr/reference/train/color/*.jpg")[:2], "train_color")
+    #distribute(glob.glob("flickr/reference/train/gray/*.jpg")[:10], "train_gray")
+    #distribute(glob.glob("flickr/reference/test/color/*.jpg")[:10], "test_color")
+    #distribute(glob.glob("flickr/reference/test/gray/*.jpg")[:10], "test_gray")
 
 
 if __name__ == "__main__":
