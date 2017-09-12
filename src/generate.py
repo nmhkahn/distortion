@@ -12,7 +12,7 @@ from distortion import *
 import warnings
 warnings.filterwarnings("ignore")
 
-NUM_PROC = 2
+NUM_PROC = 6
 FN_NAME = {
     "gaussian_noise":     "gwn", 
     "snp": "snp",
@@ -173,7 +173,6 @@ def do_work(paths, out):
         
 
 def distribute(paths, msg):
-    print(paths)
     works_per_proc = int(len(paths)/NUM_PROC)
     
     works = [[works_per_proc*i, works_per_proc*(i+1)] for i in range(NUM_PROC)]
@@ -201,11 +200,12 @@ def distribute(paths, msg):
     with open("{}.json".format(msg), 'w') as outfile:
         json.dump(infos, outfile)
 
+
 def main():
-    distribute(glob.glob("flickr/reference/train/color/*.jpg")[:2], "train_color")
-    #distribute(glob.glob("flickr/reference/train/gray/*.jpg")[:10], "train_gray")
-    #distribute(glob.glob("flickr/reference/test/color/*.jpg")[:10], "test_color")
-    #distribute(glob.glob("flickr/reference/test/gray/*.jpg")[:10], "test_gray")
+    distribute(glob.glob("flickr/reference/train/color/*.jpg"), "train_color")
+    distribute(glob.glob("flickr/reference/train/gray/*.jpg"), "train_gray")
+    distribute(glob.glob("flickr/reference/test/color/*.jpg"), "test_color")
+    distribute(glob.glob("flickr/reference/test/gray/*.jpg"), "test_gray")
 
 
 if __name__ == "__main__":
