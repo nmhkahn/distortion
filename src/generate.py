@@ -12,7 +12,7 @@ from distortion import *
 import warnings
 warnings.filterwarnings("ignore")
 
-NUM_PROC = 6
+NUM_PROC = 1
 FN_NAME = {
     "gaussian_noise":     "gwn", 
     "snp": "snp",
@@ -54,18 +54,16 @@ def constrained_sum_sample(n, total):
 
 def _horizontal(im, num_parts):
     h, w = im.shape[:2]
-    if len(im.shape) == 3:
-        new_im = np.empty((h, w, 3), dtype=np.uint8)
-    else:
-        new_im = np.empty((h, w), dtype=np.uint8)
+    new_im = np.copy(im)
     parts = constrained_sum_sample(num_parts, h)
     
     distorts = list()
     for i in range(1, len(parts)):
         idx = np.random.randint(len(TYPE))
         type_ = TYPE[idx][0]
-        min_, max_  = TYPE[idx][1:]
         if type_ is None: continue
+       
+        min_, max_  = TYPE[idx][1:]
         level_ = np.around(np.random.uniform(min_, max_), 3)
 
         start, end = parts[i-1], parts[i]
@@ -83,18 +81,16 @@ def _horizontal(im, num_parts):
 
 def _vertical(im, num_parts):
     h, w = im.shape[:2]
-    if len(im.shape) == 3:
-        new_im = np.empty((h, w, 3), dtype=np.uint8)
-    else:
-        new_im = np.empty((h, w), dtype=np.uint8)
+    new_im = np.copy(im)
     parts = constrained_sum_sample(num_parts, w)
 
     distorts = list()
     for i in range(1, len(parts)):
         idx = np.random.randint(len(TYPE))
         type_ = TYPE[idx][0]
-        min_, max_  = TYPE[idx][1:]
         if type_ is None: continue
+        
+        min_, max_  = TYPE[idx][1:]
         level_ = np.around(np.random.uniform(min_, max_), 3)
         
         start, end = parts[i-1], parts[i]
@@ -112,10 +108,7 @@ def _vertical(im, num_parts):
 
 def _block(im, num_parts):
     h, w = im.shape[:2]
-    if len(im.shape) == 3:
-        new_im = np.empty((h, w, 3), dtype=np.uint8)
-    else:
-        new_im = np.empty((h, w), dtype=np.uint8)
+    new_im = np.copy(im)
     h_parts = constrained_sum_sample(num_parts, h)
     w_parts = constrained_sum_sample(num_parts, w)
 
@@ -124,8 +117,9 @@ def _block(im, num_parts):
         for j in range(1, len(w_parts)):
             idx = np.random.randint(len(TYPE))
             type_ = TYPE[idx][0]
-            min_, max_  = TYPE[idx][1:]
             if type_ is None: continue
+            
+            min_, max_  = TYPE[idx][1:]
             level_ = np.around(np.random.uniform(min_, max_), 3)
 
             start_h, end_h = h_parts[i-1], h_parts[i]
@@ -168,7 +162,7 @@ def do_work(paths, out):
                 i += 1
                 infos.append(info)
                 new_im.save(in_path, format="JPEG", quality=100)
-                print(path, "=>", in_path)
+                print("[PID{}: {}/{}]".format(pid, i+step*12, len(paths)*12), path, "=>", in_path)
     out.put(infos)
         
 
@@ -202,9 +196,9 @@ def distribute(paths, msg):
 
 
 def main():
-    distribute(glob.glob("flickr/reference/train/color/*.jpg"), "train_color")
+    # distribute(glob.glob("flickr/reference/train/color/*.jpg"), "train_color")
     distribute(glob.glob("flickr/reference/train/gray/*.jpg"), "train_gray")
-    distribute(glob.glob("flickr/reference/test/color/*.jpg"), "test_color")
+    # distribute(glob.glob("flickr/reference/test/color/*.jpg"), "test_color")
     distribute(glob.glob("flickr/reference/test/gray/*.jpg"), "test_gray")
 
 
